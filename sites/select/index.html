@@ -38,7 +38,7 @@
             <div class="hero-copy">
                 <p class="eyebrow"><span class="eyebrow-dot"></span> MEET PETALCORE SELECT</p>
                 <h1 id="hero-title">A plant that fits <em>your life.</em></h1>
-                <p class="hero-description">Tell us about your space, your light, and the kind of care you enjoy. Select is being grown into a thoughtful guide to plants that suit you.</p>
+                <p class="hero-description">Tell us about your space, your light, and the kind of care you enjoy. Select will find plants in the Petalcore library that fit your preferences.</p>
                 <a class="button button-primary" href="#preferences">Explore your preferences <span aria-hidden="true">↓</span></a>
                 <div class="hero-caption"><span class="caption-line"></span> GOOD PLANT, GOOD PLACE, GOOD FIT</div>
             </div>
@@ -57,13 +57,13 @@
                 <div>
                     <p class="eyebrow">A FEW THINGS ABOUT YOUR SPACE</p>
                     <h2 id="preferences-title">What feels right for you?</h2>
-                    <p class="section-description">Your answers will help shape a personal plant shortlist.</p>
+                    <p class="section-description">Choose what matters to you and get a shortlist from the plant library.</p>
                 </div>
-                <span class="preview-badge"><span></span> RECOMMENDATION TOOL · IN PROGRESS</span>
+                <span class="preview-badge"><span></span> PERSONALIZED PICKS FROM THE PLANT LIBRARY</span>
             </div>
 
             <div class="select-workspace">
-                <form class="preference-form" aria-describedby="previewNotice">
+                <form id="preferenceForm" class="preference-form" aria-describedby="formNotice">
                     <div class="form-heading">
                         <span class="form-icon" aria-hidden="true">✳</span>
                         <div><h3>Your growing space</h3><p>Choose what sounds most like you.</p></div>
@@ -120,14 +120,15 @@
                         </div>
                     </fieldset>
 
-                    <button class="button button-primary submit-button" type="button" disabled aria-disabled="true">
-                        <span>Recommendations are on the way</span><span aria-hidden="true">✳</span>
+                    <button id="recommendButton" class="button button-primary submit-button" type="submit">
+                        <span id="buttonLabel">Find my plant matches</span><span aria-hidden="true">→</span>
                     </button>
-                    <p id="previewNotice" class="preview-notice">This is a preview of the Select experience. Your preferences are not submitted or saved yet.</p>
+                    <p id="formNotice" class="preview-notice">Your preferences are used to rank matches from the plant library and are not saved.</p>
+                    <p id="errorMessage" class="error-message" role="alert" hidden></p>
                 </form>
 
                 <aside class="shortlist-panel" aria-labelledby="shortlist-title">
-                    <div class="shortlist-topline"><span>YOUR FUTURE SHORTLIST</span><span aria-hidden="true">✳</span></div>
+                    <div class="shortlist-topline"><span>HOW SELECT WORKS</span><span aria-hidden="true">✳</span></div>
                     <div class="shortlist-art" aria-hidden="true">
                         <svg viewBox="0 0 180 180" fill="none">
                             <circle cx="90" cy="90" r="72" stroke="currentColor" stroke-width="1" stroke-dasharray="2 6"/>
@@ -135,13 +136,26 @@
                             <path d="M67 143h46l-5 18H72l-5-18Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
                         </svg>
                     </div>
-                    <h3 id="shortlist-title">Your shortlist will grow here.</h3>
-                    <p>When Select is ready, we’ll use your preferences to find plants worth bringing home.</p>
+                    <h3 id="shortlist-title">A better fit starts with you.</h3>
+                    <p>Share a few preferences and Select will rank plants from the Petalcore library to help you get started.</p>
                     <div class="shortlist-divider"></div>
-                    <div class="shortlist-step"><span>01</span><p><strong>Tell us about your space</strong><small>Light, room, and routine</small></p></div>
-                    <div class="shortlist-step"><span>02</span><p><strong>We’ll find your fit</strong><small>Suggestions from the plant library</small></p></div>
+                    <div class="shortlist-step"><span>01</span><p><strong>Share your preferences</strong><small>Setting, light, care, and interests</small></p></div>
+                    <div class="shortlist-step"><span>02</span><p><strong>Explore your matches</strong><small>Ranked with reasons to help you choose</small></p></div>
                 </aside>
             </div>
+
+            <section id="recommendationResultsSection" class="recommendation-results-section" aria-labelledby="recommendationResultsTitle" hidden>
+                <div class="results-section-heading">
+                    <div>
+                        <p class="eyebrow">YOUR PERSONALIZED SHORTLIST</p>
+                        <h2 id="recommendationResultsTitle">Plants picked for you</h2>
+                        <p id="recommendationStatus" class="section-description" role="status" aria-live="polite"></p>
+                    </div>
+                    <span id="matchCount" class="match-count"></span>
+                </div>
+                <div id="recommendationResults" class="recommendation-results"></div>
+                <p id="recommendationNotes" class="recommendation-notes"></p>
+            </section>
         </section>
     </main>
 

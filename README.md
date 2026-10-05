@@ -8,13 +8,35 @@ This is a combined deployment source for Petalcore Index, Petalcore ID, Petalcor
 | --- | --- | --- |
 | Petalcore Index | /index/ | Plant library routes, Index client key |
 | Petalcore ID | /id/ | Plant identification route, ID client key |
-| Petalcore Select | /select/ | Plant library placeholder, Select client key |
+| Petalcore Select | /select/ | Plant recommendations route, Select client key |
 
-The shared API is available under /api/v1. The root page links to all three apps. Select is still the Index placeholder in the source repositories; this deployment source does not add the recommendation questionnaire or recommendation endpoint.
+The shared API is available under /api/v1. The root page links to all three apps. Select sends the user's preferences to the shared recommendation endpoint.
 
 ## API keys
 
-The server reads PETALCORE_INDEX_API_KEY, PETALCORE_ID_API_KEY, and PETALCORE_SELECT_API_KEY separately. The Index and Select keys are accepted on the shared plant-library routes; the ID key is accepted only on /api/v1/identify.
+The server reads PETALCORE_INDEX_API_KEY, PETALCORE_ID_API_KEY, and PETALCORE_SELECT_API_KEY separately. The Index and Select keys are accepted on the shared plant-library routes; the Select key is required for /api/v1/recommendations; the ID key is accepted only on /api/v1/identify.
+
+## Petalcore Select recommendations
+
+`POST /api/v1/recommendations` accepts the user's plant preferences and returns up to five ranked catalog entries with match scores and reasons. Send the Select browser key in the `x-api-key` header.
+
+Example request:
+
+    {
+      "setting": "indoors",
+      "light": "partial",
+      "care": "occasional",
+      "interests": ["foliage", "herbs"]
+    }
+
+Allowed values:
+
+- `setting`: `indoors`, `outdoors`, or `either`
+- `light`: `bright`, `partial`, `low`, or `any`
+- `care`: `occasional`, `steady`, `attentive`, or `any`
+- `interests`: any of `flowers`, `foliage`, `herbs`, and `surprise`
+
+Choose at least one preference. The endpoint uses catalog traits as estimates; indoor and outdoor suitability is inferred because the current plant records do not contain a dedicated setting field.
 
 Browser client keys are public identifiers because browser code must send them. They are not private user passwords. PLANTNET_API_KEY is the private provider credential and must only be set in the Vercel environment or a local ignored .env file.
 

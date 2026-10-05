@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 from api.id_feature import api_router as id_api_router
+from api.select_feature import create_select_router
 
 
 # CONFIGURATION
@@ -466,11 +467,11 @@ plants = [
 
 # Validate every record at startup while preserving dictionary access in routes.
 plants = [Plant.model_validate(plant).model_dump() for plant in plants]
+select_api_router = create_select_router(lambda: plants)
 
 # API KEY AUTHENTICATION
 def verify_api_key(x_api_key: Optional[str] = Header(default=None)):
-    # The Select site currently reuses the Index catalogue UI as its placeholder.
-    # Both sites may read catalogue routes, but each uses its own client key.
+    # Index and Select may read shared catalog routes using their own client keys.
     valid_keys = {INDEX_API_KEY, SELECT_API_KEY}
     if not x_api_key or x_api_key not in valid_keys:
         raise HTTPException(
@@ -572,6 +573,7 @@ def get_plant(plant_id: int):
 
 app.include_router(api_router)
 app.include_router(id_api_router)
+app.include_router(select_api_router)
 
 # FRONTEND SITES
 app.mount(
