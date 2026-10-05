@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Petalcore ID</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Work+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header>
+        <div class="brand">
+            <svg class="brand-icon" viewBox="0 0 48 48" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M24 42V14"/>
+                <path d="M24 14c0-7 5-11 12-11-1 7-5 12-12 12"/>
+                <path d="M24 22c0-6-5-9-11-9 1 6 5 10 11 10"/>
+                <path d="M24 30c0-5-4-8-9-8 1 5 4 8 9 8"/>
+            </svg>
+            <div class="brand-text">
+                <h1>Petalcore ID</h1>
+                <p>Upload a plant photo to find possible matches. Powered by Pl@ntNet</p>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section aria-labelledby="upload-title">
+            <h2 id="upload-title">Identify a plant</h2>
+            <form id="identifyForm" class="upload-area">
+                <div id="dropZone" class="drop-zone">
+                    <p id="uploadPrompt">Drop a plant photo here or choose one below.</p>
+                    <img id="preview" alt="Your selected plant photo" hidden>
+                    <p id="photoMeta" class="photo-meta" hidden></p>
+                </div>
+                <div class="upload-controls">
+                    <div class="photo-actions">
+                        <button type="button" id="chooseButton">Choose photo</button>
+                        <button type="button" id="cameraButton" class="secondary">Take a photo</button>
+                        <button type="button" id="removeButton" class="secondary" hidden>Remove</button>
+                    </div>
+                    <input id="photoInput" type="file" accept="image/jpeg,image/png" hidden>
+                    <input id="cameraInput" type="file" accept="image/jpeg,image/png" capture="environment" hidden>
+                    <p class="file-help">JPG or PNG, up to 20 MB. Large photos are resized automatically.</p>
+                    <label for="organ">Plant part</label>
+                    <select id="organ" name="organ">
+                        <option value="auto">Detect automatically</option>
+                        <option value="leaf">Leaf</option>
+                        <option value="flower">Flower</option>
+                        <option value="fruit">Fruit</option>
+                        <option value="bark">Bark</option>
+                    </select>
+                    <button id="identifyButton" type="submit" disabled><span id="buttonLabel">Identify this plant</span></button>
+                    <p class="privacy-note">Photos are sent to Pl@ntNet for identification. Petalcore does not save uploads.</p>
+                </div>
+            </form>
+            <p id="statusMessage" class="status-message" role="status" aria-live="polite"></p>
+            <p id="errorMessage" class="error-message" role="alert" hidden></p>
+        </section>
+
+        <section class="results-panel" aria-labelledby="results-title" aria-busy="false">
+            <h2 id="results-title">Possible matches</h2>
+            <p id="emptyState" class="muted">Upload a photo to see possible plant matches.</p>
+            <p id="loadingState" class="loading-text" hidden>Identifying your plant...</p>
+            <p id="noMatchState" class="muted" hidden>No match found. Try a clearer photo of a leaf or flower.</p>
+            <div id="results" class="results" hidden></div>
+            <p id="resultNote" class="result-note" hidden>Results are suggestions, not a confirmed identification. Do not use a photo result to decide whether a plant is edible.</p>
+        </section>
+    </main>
+
+    <footer>
+        <p>Plant identification provided by <a href="https://plantnet.org/en/" target="_blank" rel="noopener noreferrer">Pl@ntNet</a></p>
+    </footer>
+    <script src="app.js"></script>
+</body>
+</html>
