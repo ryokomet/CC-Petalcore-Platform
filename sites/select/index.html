@@ -4,61 +4,152 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Plant Finder</title>
+    <meta name="theme-color" content="#f6f5ef">
+    <meta name="description" content="Find plants suited to your space, light, and care routine with Petalcore Select.">
+    <title>Petalcore Select — Find your kind of plant</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Work+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 
-<body>
-    <header>
-        <div class="brand">
-            <svg class="brand-icon" viewBox="0 0 48 48" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M24 42V14"/>
-                <path d="M24 14c0-7 5-11 12-11-1 7-5 12-12 12"/>
-                <path d="M24 22c0-6-5-9-11-9 1 6 5 10 11 10"/>
-                <path d="M24 30c0-5-4-8-9-8 1 5 4 8 9 8"/>
-            </svg>
-            <div class="brand-text">
-                <h1>Simple Plant Finder</h1>
-                <p>A quick-reference field guide to common garden and houseplants. Powered by REST API</p>
-            </div>
+<body class="select-page">
+    <header class="site-header">
+        <div class="nav-shell">
+            <a class="wordmark" href="../" aria-label="Petalcore home">
+                <span class="wordmark-icon" aria-hidden="true">
+                    <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M24 42V14"/><path d="M24 14c0-7 5-11 12-11-1 7-5 12-12 12"/><path d="M24 22c0-6-5-9-11-9 1 6 5 10 11 10"/><path d="M24 30c0-5-4-8-9-8 1 5 4 8 9 8"/>
+                    </svg>
+                </span>
+                <span>petalcore<span class="wordmark-period">.</span></span>
+            </a>
+            <nav class="site-nav" aria-label="Main navigation">
+                <a class="nav-link" href="../index/">Explore</a>
+                <a class="nav-link" href="../id/">Identify</a>
+                <a class="nav-link active" href="../select/" aria-current="page">Select</a>
+            </nav>
+            <a class="nav-cta" href="../index/">Browse plants <span aria-hidden="true">↗</span></a>
         </div>
     </header>
 
-    <main>
-
-        <!-- SEARCH -->
-        <section class="search">
-            <input type="text" id="searchInput" placeholder="Search for a plant...">
-            <button onclick="searchPlants()">Search</button>
-            <button class="secondary" onclick="loadPlants()">Show all</button>
+    <main class="page-shell">
+        <section class="hero select-hero" aria-labelledby="hero-title">
+            <div class="hero-copy">
+                <p class="eyebrow"><span class="eyebrow-dot"></span> MEET PETALCORE SELECT</p>
+                <h1 id="hero-title">A plant that fits <em>your life.</em></h1>
+                <p class="hero-description">Tell us about your space, your light, and the kind of care you enjoy. Select is being grown into a thoughtful guide to plants that suit you.</p>
+                <a class="button button-primary" href="#preferences">Explore your preferences <span aria-hidden="true">↓</span></a>
+                <div class="hero-caption"><span class="caption-line"></span> GOOD PLANT, GOOD PLACE, GOOD FIT</div>
+            </div>
+            <figure class="hero-visual">
+                <img src="images/snake-plant.jpg" alt="A healthy snake plant growing upright in a pot">
+                <figcaption class="image-note">
+                    <span class="note-mark" aria-hidden="true">✳</span>
+                    <span><strong>Made for your corner.</strong><small>Start with the way you live.</small></span>
+                </figcaption>
+                <span class="visual-index" aria-hidden="true">03 / FIELD NOTES</span>
+            </figure>
         </section>
 
-        <section>
-            <h2>The collection</h2>
-            <div id="plantList" class="plant-list">
-                Loading plants...
+        <section id="preferences" class="preferences-section" aria-labelledby="preferences-title">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">A FEW THINGS ABOUT YOUR SPACE</p>
+                    <h2 id="preferences-title">What feels right for you?</h2>
+                    <p class="section-description">Your answers will help shape a personal plant shortlist.</p>
+                </div>
+                <span class="preview-badge"><span></span> RECOMMENDATION TOOL · IN PROGRESS</span>
+            </div>
+
+            <div class="select-workspace">
+                <form class="preference-form" aria-describedby="previewNotice">
+                    <div class="form-heading">
+                        <span class="form-icon" aria-hidden="true">✳</span>
+                        <div><h3>Your growing space</h3><p>Choose what sounds most like you.</p></div>
+                    </div>
+
+                    <fieldset class="preference-field">
+                        <legend><span class="field-number">01</span> Where will your plant live?</legend>
+                        <div class="choice-grid choice-grid-three">
+                            <label class="choice-card">
+                                <input type="radio" name="setting" value="indoors">
+                                <span class="choice-content"><span class="choice-icon" aria-hidden="true">⌂</span><strong>Indoors</strong><small>Room, desk, or windowsill</small></span>
+                            </label>
+                            <label class="choice-card">
+                                <input type="radio" name="setting" value="outdoors">
+                                <span class="choice-content"><span class="choice-icon" aria-hidden="true">☼</span><strong>Outdoors</strong><small>Garden, patio, or balcony</small></span>
+                            </label>
+                            <label class="choice-card">
+                                <input type="radio" name="setting" value="either">
+                                <span class="choice-content"><span class="choice-icon" aria-hidden="true">↗</span><strong>Either</strong><small>I’m open to ideas</small></span>
+                            </label>
+                        </div>
+                    </fieldset>
+
+                    <div class="form-row">
+                        <label class="select-field" for="lightPreference">
+                            <span><b>02</b> How much light do you have?</span>
+                            <select id="lightPreference" name="light">
+                                <option value="">Choose a light level</option>
+                                <option value="bright">Bright or direct sun</option>
+                                <option value="partial">Partial or indirect light</option>
+                                <option value="low">Low light</option>
+                                <option value="any">I’m not sure yet</option>
+                            </select>
+                        </label>
+                        <label class="select-field" for="carePreference">
+                            <span><b>03</b> What care rhythm suits you?</span>
+                            <select id="carePreference" name="care">
+                                <option value="">Choose a care rhythm</option>
+                                <option value="occasional">Occasional watering</option>
+                                <option value="steady">A steady routine</option>
+                                <option value="attentive">I enjoy hands-on care</option>
+                                <option value="any">I’m flexible</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <fieldset class="preference-field category-field">
+                        <legend><span class="field-number">04</span> What would you like to grow?</legend>
+                        <div class="category-choices">
+                            <label><input type="checkbox" name="interest" value="flowers"><span>Flowers</span></label>
+                            <label><input type="checkbox" name="interest" value="foliage"><span>Leafy plants</span></label>
+                            <label><input type="checkbox" name="interest" value="herbs"><span>Herbs & edible plants</span></label>
+                            <label><input type="checkbox" name="interest" value="surprise"><span>Surprise me</span></label>
+                        </div>
+                    </fieldset>
+
+                    <button class="button button-primary submit-button" type="button" disabled aria-disabled="true">
+                        <span>Recommendations are on the way</span><span aria-hidden="true">✳</span>
+                    </button>
+                    <p id="previewNotice" class="preview-notice">This is a preview of the Select experience. Your preferences are not submitted or saved yet.</p>
+                </form>
+
+                <aside class="shortlist-panel" aria-labelledby="shortlist-title">
+                    <div class="shortlist-topline"><span>YOUR FUTURE SHORTLIST</span><span aria-hidden="true">✳</span></div>
+                    <div class="shortlist-art" aria-hidden="true">
+                        <svg viewBox="0 0 180 180" fill="none">
+                            <circle cx="90" cy="90" r="72" stroke="currentColor" stroke-width="1" stroke-dasharray="2 6"/>
+                            <path d="M90 137V77M90 92c-1-24-15-35-38-35 3 22 17 36 38 37ZM90 83c1-25 17-39 40-39-2 24-17 40-40 41ZM90 111c-1-17-12-27-29-27 2 16 13 28 29 29ZM90 105c1-17 12-27 29-27-2 16-13 28-29 29Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M67 143h46l-5 18H72l-5-18Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h3 id="shortlist-title">Your shortlist will grow here.</h3>
+                    <p>When Select is ready, we’ll use your preferences to find plants worth bringing home.</p>
+                    <div class="shortlist-divider"></div>
+                    <div class="shortlist-step"><span>01</span><p><strong>Tell us about your space</strong><small>Light, room, and routine</small></p></div>
+                    <div class="shortlist-step"><span>02</span><p><strong>We’ll find your fit</strong><small>Suggestions from the plant library</small></p></div>
+                </aside>
             </div>
         </section>
     </main>
 
-    <footer>
-        <p>Data provided by the Simple Plant API</p>
+    <footer class="site-footer">
+        <a class="footer-wordmark" href="../">petalcore<span>.</span></a>
+        <p>Thoughtful plant suggestions, growing soon.</p>
+        <span>© Petalcore</span>
     </footer>
-
-    <!-- PLANT DETAILS MODAL -->
-    <div id="plantModal" class="modal-overlay">
-        <div class="modal-box">
-            <button class="modal-close" onclick="closeModal()" aria-label="Close">&times;</button>
-            <div class="modal-image">
-                <img id="modalImage" src="" alt="">
-            </div>
-            <div class="modal-content" id="modalContent"></div>
-        </div>
-    </div>
-
     <script src="app.js"></script>
 </body>
 </html>
