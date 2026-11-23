@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import text
 from api.id_feature import api_router as id_api_router
 from api.select_feature import create_select_router
 
@@ -591,3 +592,23 @@ app.mount(
     StaticFiles(directory=SITES_DIR / "select", html=True),
     name="petalcore-select",
 )
+
+# TEMPORARY DATABASE CONNECTIVITY CHECK
+@app.get("/db-test", include_in_schema=False)
+def db_test():
+    try:
+        # Import here so the .env file is loaded before DATABASE_URL is read.
+        from api.database import engine
+
+        with engine.connect() as connection:
+            result = connection.execute(text("SELECT 1"))
+
+        return {
+            "database": "connected",
+            "result": result.scalar_one(),
+        }
+    except Exception:
+        return JSONResponse(
+            {"database": "error"},
+            status_code=503,
+        )
