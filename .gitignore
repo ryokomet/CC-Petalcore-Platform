@@ -5,6 +5,3 @@ __pycache__/
 *.py[cod]
 .vercel/
 .pytest_cache/
-.env
-.env.*
-!.env.example
