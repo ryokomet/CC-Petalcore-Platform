@@ -602,9 +602,9 @@ def db_test():
             result = connection.execute(text("SELECT 1")).scalar_one()
         return {"database": "connected", "result": result}
     except Exception as exc:
-        # Only the exception class is returned, never the URL or password.
+        message = str(getattr(exc, "orig", exc)).splitlines()[0][:200]
         return JSONResponse(
-            {"database": "error", "error_type": type(exc).__name__},
+            {"database": "error", "error_type": type(exc).__name__, "message": message},
             status_code=503,
         )
 
