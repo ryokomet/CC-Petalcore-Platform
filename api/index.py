@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 from api.id_feature import api_router as id_api_router
 from api.select_feature import create_select_router
-
+from sqlalchemy import text
 
 # CONFIGURATION
 BASE_DIR = Path(__file__).resolve().parent
@@ -591,3 +591,37 @@ app.mount(
     StaticFiles(directory=SITES_DIR / "select", html=True),
     name="petalcore-select",
 )
+
+# DATABASE CONNECTIVITY CHECK (Phase 4, step 6-7)
+@app.get("/db-test", include_in_schema=False)
+def db_test():
+    try:
+        from api.database import engine
+
+        with engine.connect() as connection:
+            result = connection.execute(text("SELECT 1")).scalar_one()
+        return {"database": "connected", "result": result}
+    except Exception as exc:
+        # Only the exception class is returned, never the URL or password.
+        return JSONResponse(
+            {"database": "error", "error_type": type(exc).__name__},
+            status_code=503,
+        )
+
+
+# INITIAL DATA RETRIEVAL (Phase 4, step 8)
+@app.get("/db-plants", include_in_schema=False)
+def db_plants():
+    try:
+        from api.database import engine
+
+        with engine.connect() as connection:
+            rows = connection.execute(
+                text("SELECT id, common_name, scientific_name FROM plants ORDER BY id LIMIT 5")
+            ).mappings().all()
+        return {"count": len(rows), "plants": [dict(r) for r in rows]}
+    except Exception as exc:
+        return JSONResponse(
+            {"database": "error", "error_type": type(exc).__name__},
+            status_code=503,
+        )

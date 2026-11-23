@@ -10,4 +10,6 @@ dependencies = [
     "python-multipart>=0.0.20,<1",
     "python-dotenv>=1,<2",
     "Pillow>=11,<13",
+    "sqlalchemy>=2,<3",
+    "psycopg[binary]>=3.2,<4",
 ]
