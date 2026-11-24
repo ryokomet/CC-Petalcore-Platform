@@ -279,14 +279,46 @@ def check_admin_session():
     return {"authenticated": True}
 
 
+def _integrity_conflict_detail(exc: IntegrityError) -> str:
+    """Translate common PostgreSQL constraint failures without exposing internals."""
+    original = getattr(exc, "orig", None)
+    sqlstate = (
+        getattr(original, "sqlstate", None)
+        or getattr(original, "pgcode", None)
+    )
+    diagnostic = getattr(original, "diag", None)
+    constraint = (getattr(diagnostic, "constraint_name", None) or "").lower()
+    column = (getattr(diagnostic, "column_name", None) or "").lower()
+
+    if sqlstate == "23505":
+        field_labels = {
+            "common_name": "common name",
+            "scientific_name": "scientific name",
+            "image_slug": "image slug",
+        }
+        for field, label in field_labels.items():
+            if column == field or field in constraint:
+                return f"A plant with that {label} already exists. Choose a different value."
+
+        if constraint.endswith("plants_pkey") or "plants_id_key" in constraint:
+            return "The database generated an ID that is already in use. The plant ID sequence needs repair."
+
+        return (
+            "A value that must be unique is already in use. Check the common name, "
+            "scientific name, and image slug."
+        )
+
+    return "The plant conflicts with an existing database record."
+
+
 def _database_call(operation):
     """Translate database failures into safe API responses."""
     try:
         return operation()
-    except IntegrityError:
+    except IntegrityError as exc:
         raise HTTPException(
             status_code=409,
-            detail="The plant conflicts with an existing database record.",
+            detail=_integrity_conflict_detail(exc),
         ) from None
     except Exception:
         raise HTTPException(
