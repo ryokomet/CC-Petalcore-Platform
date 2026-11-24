@@ -52,6 +52,15 @@
       <p id="profileNotice" class="notice" role="status" aria-live="polite"></p>
       <button id="logoutButton" class="secondary-button" type="button">Sign out</button>
     </section>
+    <section id="recoveryPanel" class="account-card" hidden>
+      <p class="eyebrow">ACCOUNT SECURITY</p>
+      <h2>Choose a new password.</h2>
+      <form id="recoveryForm">
+        <label>New password<input id="newPassword" type="password" minlength="8" autocomplete="new-password" required></label>
+        <button class="primary-button" type="submit">Update password</button>
+      </form>
+      <p id="recoveryNotice" class="notice" role="status" aria-live="polite"></p>
+    </section>
     <a class="back-link" href="/">← Back to Petalcore</a>
   </main>
   <footer>© Petalcore · Explore plants with a little more confidence.</footer>
