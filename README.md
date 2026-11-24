@@ -20,6 +20,8 @@ The photo results and Select recommendations are suggestions to help with plant 
 
 The shared plant catalog is stored in the PostgreSQL `plants` table. The API reads the current database contents for browsing, detail, search, and Select recommendations.
 
+Open `/admin/` for a visual catalog workspace. It provides list, search, detail, create, edit, and delete controls and shows the latest API request and response. Enter the admin key when unlocking; the page keeps it in memory only and clears it when locked or reloaded.
+
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
 | `GET` | `/api/v1/plants` | List plants ordered by ID. |

@@ -258,6 +258,15 @@ def verify_admin_api_key(x_api_key: Optional[str] = Header(default=None)):
     return True
 
 
+@api_router.get(
+    "/admin/session",
+    include_in_schema=False,
+    dependencies=[Depends(verify_admin_api_key)],
+)
+def check_admin_session():
+    return {"authenticated": True}
+
+
 def _database_call(operation):
     """Translate database failures into safe API responses."""
     try:
@@ -444,6 +453,11 @@ app.mount(
     "/select",
     StaticFiles(directory=SITES_DIR / "select", html=True),
     name="petalcore-select",
+)
+app.mount(
+    "/admin",
+    StaticFiles(directory=SITES_DIR / "admin", html=True),
+    name="petalcore-admin",
 )
 
 # DATABASE CONNECTIVITY CHECK (Phase 4, step 6-7)

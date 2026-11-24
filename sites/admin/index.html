@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f6f5ef">
+    <meta name="description" content="Manage the Petalcore plant catalog.">
+    <title>Petalcore — Plant admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="site-header">
+        <div class="shell header-inner">
+            <a class="brand" href="/" aria-label="Petalcore home">petalcore<span>.</span></a>
+            <nav aria-label="Main navigation">
+                <a href="/">Home</a>
+                <a href="/index/">Plant library</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="shell page-content">
+        <section class="intro">
+            <div>
+                <p class="eyebrow"><span class="eyebrow-dot"></span> PLANT LIBRARY WORKSPACE</p>
+                <h1>Keep the collection growing.</h1>
+                <p class="intro-copy">Add plants, make careful updates, and see each database response as it happens.</p>
+            </div>
+            <div class="intro-note"><span class="note-mark" aria-hidden="true">✳</span><span>Every change is saved to the shared plant database.</span></div>
+        </section>
+
+        <section class="access-card" aria-labelledby="access-title">
+            <div class="access-copy">
+                <span class="access-icon" aria-hidden="true">⌑</span>
+                <div>
+                    <p class="eyebrow">ADMIN ACCESS</p>
+                    <h2 id="access-title">Unlock the workspace</h2>
+                    <p>Your admin key stays in this page's memory and is cleared when you lock or leave.</p>
+                </div>
+            </div>
+            <form id="unlockForm" class="unlock-form">
+                <label for="adminKey">Admin API key</label>
+                <div class="unlock-controls">
+                    <input id="adminKey" name="adminKey" type="password" autocomplete="off" required placeholder="Enter your admin key">
+                    <button class="button button-primary" type="submit">Unlock</button>
+                </div>
+                <p id="accessMessage" class="form-message" role="status" aria-live="polite"></p>
+            </form>
+        </section>
+
+        <section id="workspace" class="workspace" hidden>
+            <div class="workspace-heading">
+                <div>
+                    <p class="eyebrow">DATABASE RECORDS</p>
+                    <h2>Plant collection</h2>
+                </div>
+                <div class="workspace-controls">
+                    <form id="searchForm" class="search-form" role="search">
+                        <label class="visually-hidden" for="searchInput">Search plants</label>
+                        <input id="searchInput" type="search" maxlength="100" placeholder="Search by plant name">
+                        <button class="button button-light" type="submit">Search</button>
+                    </form>
+                    <button id="refreshButton" class="button button-light" type="button">Refresh</button>
+                    <button id="createButton" class="button button-primary" type="button">＋ Add plant</button>
+                    <button id="lockButton" class="button button-quiet" type="button">Lock</button>
+                </div>
+            </div>
+
+            <p id="notice" class="notice" role="status" aria-live="polite"></p>
+
+            <div class="workspace-grid">
+                <section class="catalog-card" aria-labelledby="catalog-heading">
+                    <div class="card-heading">
+                        <div>
+                            <h3 id="catalog-heading">Current records</h3>
+                            <p id="recordCount">Loading the collection…</p>
+                        </div>
+                        <span class="live-mark"><span></span> Live database</span>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Plant</th>
+                                    <th scope="col">Type</th>
+                                    <th scope="col">ID</th>
+                                    <th scope="col"><span class="visually-hidden">Actions</span></th>
+                                </tr>
+                            </thead>
+                            <tbody id="plantRows">
+                                <tr><td class="empty-cell" colspan="4">Unlock the workspace to load plants.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <aside class="activity-card" aria-labelledby="activity-heading">
+                    <div class="card-heading">
+                        <div>
+                            <p class="eyebrow">REQUEST DETAILS</p>
+                            <h3 id="activity-heading">Last API response</h3>
+                        </div>
+                        <span id="responseStatus" class="status-pill status-idle">Ready</span>
+                    </div>
+                    <p id="requestLine" class="request-line">Choose an action to see its method, path, and result here.</p>
+                    <section class="payload-section">
+                        <h4>Request body</h4>
+                        <pre id="requestBody" class="payload empty-payload">No request body.</pre>
+                    </section>
+                    <section class="payload-section response-section">
+                        <h4>Response</h4>
+                        <pre id="responseBody" class="payload empty-payload">Responses will appear here.</pre>
+                    </section>
+                </aside>
+            </div>
+        </section>
+    </main>
+
+    <dialog id="plantDialog" class="modal">
+        <form id="plantForm" class="modal-card">
+            <div class="modal-heading">
+                <div>
+                    <p class="eyebrow">PLANT DETAILS</p>
+                    <h2 id="plantDialogTitle">Add a plant</h2>
+                </div>
+                <button id="closePlantDialog" class="close-button" type="button" aria-label="Close form">×</button>
+            </div>
+            <div id="updateMode" class="update-mode" hidden>
+                <label for="updateMethod">Update style</label>
+                <select id="updateMethod">
+                    <option value="PATCH">Partial update (PATCH)</option>
+                    <option value="PUT">Replace all fields (PUT)</option>
+                </select>
+                <span>PATCH saves only changed fields.</span>
+            </div>
+            <div id="plantFields" class="field-grid"></div>
+            <div class="modal-actions">
+                <button id="cancelPlantDialog" class="button button-light" type="button">Cancel</button>
+                <button id="savePlantButton" class="button button-primary" type="submit">Create plant</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="detailsDialog" class="modal">
+        <section class="modal-card detail-card">
+            <div class="modal-heading">
+                <div>
+                    <p class="eyebrow">DATABASE RECORD</p>
+                    <h2 id="detailsTitle">Plant details</h2>
+                </div>
+                <button id="closeDetailsDialog" class="close-button" type="button" aria-label="Close details">×</button>
+            </div>
+            <pre id="detailsBody" class="payload detail-payload"></pre>
+        </section>
+    </dialog>
+
+    <footer class="site-footer">
+        <div class="shell footer-inner"><a class="brand" href="/">petalcore<span>.</span></a><p>Plant records, kept in one place.</p><a href="/index/">Back to the library →</a></div>
+    </footer>
+    <script src="app.js"></script>
+</body>
+</html>
