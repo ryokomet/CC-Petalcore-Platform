@@ -122,9 +122,35 @@ $("logoutButton").addEventListener("click", async () => {
   showNotice($("notice"), "You have been signed out.");
 });
 
+$("recoveryForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const password = $("newPassword").value;
+  if (password.length < 8) {
+    showNotice($("recoveryNotice"), "Use at least 8 characters.", true);
+    return;
+  }
+  try {
+    const { error } = await supabaseClient.auth.updateUser({ password });
+    if (error) throw error;
+    showNotice($("recoveryNotice"), "Password updated. You can continue using Petalcore.");
+    $("recoveryForm").hidden = true;
+    $("profilePanel").hidden = false;
+    await showCurrentSession();
+  } catch (error) {
+    showNotice($("recoveryNotice"), error.message || "Password could not be updated.", true);
+  }
+});
+
 (async function initialize() {
   try {
     await loadClient();
+    supabaseClient.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        $("authPanel").hidden = true;
+        $("profilePanel").hidden = true;
+        $("recoveryPanel").hidden = false;
+      }
+    });
     await showCurrentSession();
   } catch (error) {
     showNotice($("notice"), error.message || "Account services are unavailable.", true);
