@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f5ef">
+  <meta name="description" content="Create a Petalcore account or sign in to manage your plant discoveries.">
+  <title>Account — Petalcore</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="wordmark" href="/">petalcore<span>.</span></a>
+    <nav><a href="/index/">Index</a><a href="/id/">ID</a><a href="/select/">Select</a></nav>
+  </header>
+  <main class="account-shell">
+    <section class="intro">
+      <p class="eyebrow">YOUR PETALCORE SPACE</p>
+      <h1>A little space to grow.</h1>
+      <p>Browse Petalcore without an account, or sign in to keep your plant discoveries together as personal features become available.</p>
+    </section>
+
+    <section id="authPanel" class="account-card">
+      <div class="tabs" role="tablist" aria-label="Account options">
+        <button id="loginTab" class="tab active" type="button" role="tab" aria-selected="true">Sign in</button>
+        <button id="signupTab" class="tab" type="button" role="tab" aria-selected="false">Create account</button>
+      </div>
+      <form id="authForm">
+        <label id="nameField" hidden>Display name<input id="displayName" type="text" autocomplete="name" maxlength="80" placeholder="How should we call you?"></label>
+        <label>Email address<input id="email" type="email" autocomplete="email" required placeholder="you@example.com"></label>
+        <label>Password<input id="password" type="password" autocomplete="current-password" minlength="8" required placeholder="At least 8 characters"></label>
+        <button id="submitButton" class="primary-button" type="submit">Sign in</button>
+      </form>
+      <button id="forgotButton" class="text-button" type="button">Forgot password?</button>
+      <p id="notice" class="notice" role="status" aria-live="polite"></p>
+      <p class="fine-print">Creating an account is optional. Your account is used for Petalcore features and does not affect guest access.</p>
+    </section>
+
+    <section id="profilePanel" class="account-card profile-card" hidden>
+      <p class="eyebrow">ACCOUNT</p>
+      <h2 id="welcomeTitle">Welcome back.</h2>
+      <p id="accountEmail" class="account-email"></p>
+      <form id="profileForm">
+        <label>Display name<input id="profileName" type="text" maxlength="80" placeholder="Your name"></label>
+        <button class="primary-button" type="submit">Save profile</button>
+      </form>
+      <p id="profileNotice" class="notice" role="status" aria-live="polite"></p>
+      <button id="logoutButton" class="secondary-button" type="button">Sign out</button>
+    </section>
+    <section id="recoveryPanel" class="account-card" hidden>
+      <p class="eyebrow">ACCOUNT SECURITY</p>
+      <h2>Choose a new password.</h2>
+      <form id="recoveryForm">
+        <label>New password<input id="newPassword" type="password" minlength="8" autocomplete="new-password" required></label>
+        <button class="primary-button" type="submit">Update password</button>
+      </form>
+      <p id="recoveryNotice" class="notice" role="status" aria-live="polite"></p>
+    </section>
+    <a class="back-link" href="/">← Back to Petalcore</a>
+  </main>
+  <footer>© Petalcore · Explore plants with a little more confidence.</footer>
+</body>
+</html>
