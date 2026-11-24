@@ -1,4 +1,4 @@
-const SHARED_API_ORIGIN = "https://ryokomet-cloudcomputing.vercel.app";
+const SHARED_API_ORIGIN = "https://cc-petalcore-platform.vercel.app";
 let apiConfig = null;
 
 function getAPIOrigin() {

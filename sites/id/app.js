@@ -3,7 +3,7 @@ const MAX_UPLOAD_BYTES = 4_000_000;
 const MAX_SOURCE_PIXELS = 25_000_000;
 const API_CONFIG_TIMEOUT_MS = 3000;
 const LOCAL_API_ORIGINS = ["http://127.0.0.1:8012", "http://127.0.0.1:8000"];
-const SHARED_API_ORIGIN = "https://ryokomet-cloudcomputing.vercel.app";
+const SHARED_API_ORIGIN = "https://cc-petalcore-platform.vercel.app";
 const $ = (id) => document.getElementById(id);
 
 let selectedPhoto = null;
