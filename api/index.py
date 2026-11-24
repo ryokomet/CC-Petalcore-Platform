@@ -414,6 +414,19 @@ def home():
     return FileResponse(SITES_DIR / "home.html")
 
 
+@app.get("/auth-config", include_in_schema=False)
+def auth_client_config():
+    """Expose only the Supabase project URL and public anon key to the browser."""
+    supabase_url = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
+    supabase_anon_key = os.getenv("SUPABASE_ANON_KEY", "").strip()
+    if not supabase_url or not supabase_anon_key:
+        raise HTTPException(status_code=503, detail="Account services are not configured.")
+    return JSONResponse(
+        {"supabase_url": supabase_url, "supabase_anon_key": supabase_anon_key},
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 @app.get("/config", include_in_schema=False)
 def id_client_config():
     return JSONResponse(
@@ -683,6 +696,11 @@ app.mount(
     "/select",
     StaticFiles(directory=SITES_DIR / "select", html=True),
     name="petalcore-select",
+)
+app.mount(
+    "/account",
+    StaticFiles(directory=SITES_DIR / "account", html=True),
+    name="petalcore-account",
 )
 app.mount(
     "/admin",
