@@ -1,17 +1,35 @@
+import hmac
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
 from dotenv import load_dotenv
-from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Query
+from fastapi import (
+    APIRouter,
+    Depends,
+    FastAPI,
+    Header,
+    HTTPException,
+    Path as APIPath,
+    Query,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from api.id_feature import api_router as id_api_router
+from api.plant_repository import (
+    create_plant as insert_plant,
+    find_plant as select_plant,
+    list_plants as select_plants,
+    remove_plant as delete_plant,
+    replace_plant as update_plant,
+    search_plants as search_plant_records,
+)
 from api.select_feature import create_select_router
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 
 # CONFIGURATION
 BASE_DIR = Path(__file__).resolve().parent
@@ -94,381 +112,124 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_origin_regex=local_origin_regex,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
     allow_headers=["x-api-key", "Content-Type"],
 )
 
-# DATA MODEL
-class Plant(BaseModel):
-    model_config = ConfigDict(strict=True, str_strip_whitespace=True, extra="forbid")
-
-    id: int = Field(gt=0)
-    image_slug: str = Field(min_length=1, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-    common_name: str = Field(min_length=1)
-    scientific_name: str = Field(min_length=1)
-    family: str = Field(min_length=1)
-    genus: str = Field(min_length=1)
-    plant_type: str = Field(min_length=1)
-    origin: str = Field(min_length=1)
-    habitat: str = Field(min_length=1)
-    lifespan: str = Field(min_length=1)
-    height_m: float = Field(gt=0, allow_inf_nan=False)
-    spread_m: float = Field(gt=0, allow_inf_nan=False)
-    sunlight: Literal[
-        "Full Sun", "Partial Shade", "Full Sun to Partial Shade",
-        "Low Light to Full Sun", "Bright Indirect Light"
-    ]
-    water_requirement: Literal[
-        "Low", "Moderate", "High", "Low to Moderate", "Moderate to High"
-    ]
-    soil_type: str = Field(min_length=1)
-    flower_color: str = Field(min_length=1)
-    flowering_season: str = Field(min_length=1)
-    uses: str = Field(min_length=1)
-    toxicity: str = Field(min_length=1)
-    description: str = Field(min_length=1)
-
-
-# PLANT DATA
-plants = [
-
-    {
-        "id": 1,
-        "common_name": "Rose",
-        "image_slug": "rose",
-        "scientific_name": "Rosa",
-        "family": "Rosaceae",
-        "genus": "Rosa",
-        "plant_type": "Flowering Plant",
-        "origin": "Asia, Europe, North America, and Northwest Africa",
-        "habitat": "Gardens, temperate forests, grasslands",
-        "lifespan": "Perennial",
-        "height_m": 2.0,
-        "spread_m": 1.5,
-        "sunlight": "Full Sun",
-        "water_requirement": "Moderate",
-        "soil_type": "Well-drained loamy soil",
-        "flower_color": "Red, pink, white, yellow, orange",
-        "flowering_season": "Spring to Autumn",
-        "uses": "Ornamental, perfume, cosmetics",
-        "toxicity": "Non-toxic",
-        "description": "A widely cultivated flowering plant known for its fragrant and colorful flowers and thorny stems."
-    },
-    {
-        "id": 2,
-        "common_name": "Sunflower",
-        "image_slug": "sunflower",
-        "scientific_name": "Helianthus annuus",
-        "family": "Asteraceae",
-        "genus": "Helianthus",
-        "plant_type": "Annual Herb",
-        "origin": "North America",
-        "habitat": "Grasslands, fields, agricultural areas",
-        "lifespan": "Annual",
-        "height_m": 3.0,
-        "spread_m": 0.6,
-        "sunlight": "Full Sun",
-        "water_requirement": "Moderate",
-        "soil_type": "Well-drained fertile soil",
-        "flower_color": "Yellow",
-        "flowering_season": "Summer",
-        "uses": "Oil production, food, ornamental",
-        "toxicity": "Non-toxic",
-        "description": "A tall annual plant recognized by its large yellow flower head and edible seeds."
-    },
-    {
-        "id": 3,
-        "common_name": "Lavender",
-        "image_slug": "lavender",
-        "scientific_name": "Lavandula angustifolia",
-        "family": "Lamiaceae",
-        "genus": "Lavandula",
-        "plant_type": "Herbaceous Perennial",
-        "origin": "Mediterranean region",
-        "habitat": "Dry hillsides, rocky slopes, gardens",
-        "lifespan": "Perennial",
-        "height_m": 0.8,
-        "spread_m": 0.8,
-        "sunlight": "Full Sun",
-        "water_requirement": "Low",
-        "soil_type": "Dry, well-drained alkaline soil",
-        "flower_color": "Purple",
-        "flowering_season": "Summer",
-        "uses": "Essential oils, perfume, ornamental",
-        "toxicity": "Generally non-toxic",
-        "description": "An aromatic Mediterranean herb valued for its purple flowers and distinctive fragrance."
-    },
-    {
-        "id": 4,
-        "common_name": "Aloe Vera",
-        "image_slug": "aloe-vera",
-        "scientific_name": "Aloe vera",
-        "family": "Asphodelaceae",
-        "genus": "Aloe",
-        "plant_type": "Succulent",
-        "origin": "Arabian Peninsula",
-        "habitat": "Arid and semi-arid regions",
-        "lifespan": "Perennial",
-        "height_m": 0.8,
-        "spread_m": 0.6,
-        "sunlight": "Full Sun to Partial Shade",
-        "water_requirement": "Low",
-        "soil_type": "Sandy, well-drained soil",
-        "flower_color": "Yellow",
-        "flowering_season": "Winter to Spring",
-        "uses": "Cosmetics, skincare, ornamental",
-        "toxicity": "Toxic if ingested in large quantities",
-        "description": "A drought-tolerant succulent with thick fleshy leaves commonly grown for ornamental and cosmetic purposes."
-    },
-    {
-        "id": 5,
-        "common_name": "Mango",
-        "image_slug": "mango",
-        "scientific_name": "Mangifera indica",
-        "family": "Anacardiaceae",
-        "genus": "Mangifera",
-        "plant_type": "Fruit Tree",
-        "origin": "South Asia",
-        "habitat": "Tropical forests and cultivated areas",
-        "lifespan": "Perennial",
-        "height_m": 30.0,
-        "spread_m": 12.0,
-        "sunlight": "Full Sun",
-        "water_requirement": "Moderate",
-        "soil_type": "Deep, well-drained loamy soil",
-        "flower_color": "White to Pink",
-        "flowering_season": "Winter to Spring",
-        "uses": "Fruit production, food, shade",
-        "toxicity": "Fruit is edible; sap may cause skin irritation",
-        "description": "A large tropical evergreen tree cultivated worldwide for its sweet and nutritious fruit."
-    },
-    {
-        "id": 6,
-        "common_name": "Basil",
-        "image_slug": "basil",
-        "scientific_name": "Ocimum basilicum",
-        "family": "Lamiaceae",
-        "genus": "Ocimum",
-        "plant_type": "Herb",
-        "origin": "Tropical Asia and Africa",
-        "habitat": "Gardens, farms, warm temperate regions",
-        "lifespan": "Annual or Short-lived Perennial",
-        "height_m": 0.6,
-        "spread_m": 0.4,
-        "sunlight": "Full Sun",
-        "water_requirement": "Moderate",
-        "soil_type": "Rich, well-drained soil",
-        "flower_color": "White or Purple",
-        "flowering_season": "Summer",
-        "uses": "Culinary herb, essential oils",
-        "toxicity": "Generally non-toxic",
-        "description": "An aromatic herb widely used in cooking and particularly associated with Mediterranean and Southeast Asian cuisines."
-    },
-    {
-        "id": 7,
-        "common_name": "Snake Plant",
-        "image_slug": "snake-plant",
-        "scientific_name": "Dracaena trifasciata",
-        "family": "Asparagaceae",
-        "genus": "Dracaena",
-        "plant_type": "Succulent Herb",
-        "origin": "Tropical West Africa",
-        "habitat": "Dry tropical forests and rocky areas",
-        "lifespan": "Perennial",
-        "height_m": 1.2,
-        "spread_m": 0.5,
-        "sunlight": "Low Light to Full Sun",
-        "water_requirement": "Low",
-        "soil_type": "Sandy, well-drained soil",
-        "flower_color": "Greenish White",
-        "flowering_season": "Rarely Blooms",
-        "uses": "Ornamental, indoor plant",
-        "toxicity": "Toxic if ingested",
-        "description": "A hardy indoor plant recognized for its upright sword-shaped leaves and tolerance of low-light conditions."
-    },
-    {
-        "id": 8,
-        "common_name": "Peace Lily",
-        "image_slug": "peace-lily",
-        "scientific_name": "Spathiphyllum",
-        "family": "Araceae",
-        "genus": "Spathiphyllum",
-        "plant_type": "Herbaceous Perennial",
-        "origin": "Tropical Americas and Southeast Asia",
-        "habitat": "Tropical rainforests",
-        "lifespan": "Perennial",
-        "height_m": 0.8,
-        "spread_m": 0.6,
-        "sunlight": "Partial Shade",
-        "water_requirement": "Moderate to High",
-        "soil_type": "Moist, well-drained soil",
-        "flower_color": "White",
-        "flowering_season": "Spring to Summer",
-        "uses": "Indoor ornamental plant",
-        "toxicity": "Toxic if ingested",
-        "description": "A popular tropical houseplant known for its dark green leaves and distinctive white flower-like spathes."
-    },
-    {
-        "id": 9,
-        "common_name": "Bamboo",
-        "image_slug": "bamboo",
-        "scientific_name": "Bambusa vulgaris",
-        "family": "Poaceae",
-        "genus": "Bambusa",
-        "plant_type": "Grass",
-        "origin": "Asia",
-        "habitat": "Tropical and subtropical regions",
-        "lifespan": "Perennial",
-        "height_m": 15.0,
-        "spread_m": 5.0,
-        "sunlight": "Full Sun to Partial Shade",
-        "water_requirement": "High",
-        "soil_type": "Moist, well-drained fertile soil",
-        "flower_color": "Rarely Flowers",
-        "flowering_season": "Irregular",
-        "uses": "Construction, furniture, crafts, ornamental",
-        "toxicity": "Generally non-toxic",
-        "description": "A fast-growing perennial grass with hollow stems that is widely used for construction, crafts, and landscaping."
-    },
-    {
-        "id": 10,
-        "common_name": "Orchid",
-        "image_slug": "orchid",
-        "scientific_name": "Phalaenopsis amabilis",
-        "family": "Orchidaceae",
-        "genus": "Phalaenopsis",
-        "plant_type": "Epiphytic Orchid",
-        "origin": "Southeast Asia and Australia",
-        "habitat": "Tropical forests",
-        "lifespan": "Perennial",
-        "height_m": 0.7,
-        "spread_m": 0.5,
-        "sunlight": "Bright Indirect Light",
-        "water_requirement": "Moderate",
-        "soil_type": "Bark-based or porous orchid medium",
-        "flower_color": "White",
-        "flowering_season": "Year-round",
-        "uses": "Ornamental, floral arrangements",
-        "toxicity": "Non-toxic",
-        "description": "A tropical orchid prized for its elegant white flowers and popularity as an indoor ornamental plant."
-    },
-    {
-        "id": 11,
-        "common_name": "Coconut Palm",
-        "image_slug": "coconut-palm",
-        "scientific_name": "Cocos nucifera",
-        "family": "Arecaceae",
-        "genus": "Cocos",
-        "plant_type": "Palm Tree",
-        "origin": "Tropical Indo-Pacific",
-        "habitat": "Tropical coastal regions",
-        "lifespan": "Perennial",
-        "height_m": 30.0,
-        "spread_m": 7.0,
-        "sunlight": "Full Sun",
-        "water_requirement": "High",
-        "soil_type": "Sandy, well-drained soil",
-        "flower_color": "Cream to Yellow",
-        "flowering_season": "Year-round",
-        "uses": "Food, oil, fiber, construction",
-        "toxicity": "Non-toxic",
-        "description": "A tropical palm widely cultivated for its versatile fruit, edible meat, coconut water, oil, and fibrous husks."
-    },
-    {
-        "id": 12,
-        "common_name": "Venus Flytrap",
-        "image_slug": "venus-flytrap",
-        "scientific_name": "Dionaea muscipula",
-        "family": "Droseraceae",
-        "genus": "Dionaea",
-        "plant_type": "Carnivorous Plant",
-        "origin": "Southeastern United States",
-        "habitat": "Wetlands, bogs, savannas",
-        "lifespan": "Perennial",
-        "height_m": 0.2,
-        "spread_m": 0.2,
-        "sunlight": "Full Sun",
-        "water_requirement": "High",
-        "soil_type": "Acidic, nutrient-poor soil",
-        "flower_color": "White",
-        "flowering_season": "Spring",
-        "uses": "Ornamental, educational",
-        "toxicity": "Non-toxic",
-        "description": "A carnivorous plant that captures insects using specialized hinged leaves that rapidly close when triggered."
-    },
-    {
-        "id": 13,
-        "common_name": "Pitcher Plant",
-        "image_slug": "pitcher-plant",
-        "scientific_name": "Nepenthes alata",
-        "family": "Nepenthaceae",
-        "genus": "Nepenthes",
-        "plant_type": "Carnivorous Vine",
-        "origin": "Philippines",
-        "habitat": "Tropical forests and mountainous regions",
-        "lifespan": "Perennial",
-        "height_m": 1.5,
-        "spread_m": 1.0,
-        "sunlight": "Bright Indirect Light",
-        "water_requirement": "High",
-        "soil_type": "Acidic, nutrient-poor soil",
-        "flower_color": "Green to Red",
-        "flowering_season": "Seasonal",
-        "uses": "Ornamental, educational",
-        "toxicity": "Non-toxic",
-        "description": "A tropical carnivorous plant that develops pitcher-shaped traps filled with digestive fluid for capturing insects."
-    },
-    {
-        "id": 14,
-        "common_name": "Neem",
-        "image_slug": "neem",
-        "scientific_name": "Azadirachta indica",
-        "family": "Meliaceae",
-        "genus": "Azadirachta",
-        "plant_type": "Evergreen Tree",
-        "origin": "Indian Subcontinent",
-        "habitat": "Tropical and subtropical regions",
-        "lifespan": "Perennial",
-        "height_m": 20.0,
-        "spread_m": 15.0,
-        "sunlight": "Full Sun",
-        "water_requirement": "Low to Moderate",
-        "soil_type": "Well-drained sandy or loamy soil",
-        "flower_color": "White",
-        "flowering_season": "Spring",
-        "uses": "Traditional products, insect repellent, shade",
-        "toxicity": "Seeds and oil can be toxic if improperly consumed",
-        "description": "A hardy evergreen tree valued for its traditional uses and natural insect-repellent properties."
-    },
-    {
-        "id": 15,
-        "common_name": "Acacia",
-        "image_slug": "acacia",
-        "scientific_name": "Acacia mangium",
-        "family": "Fabaceae",
-        "genus": "Acacia",
-        "plant_type": "Evergreen Tree",
-        "origin": "Australia and Papua New Guinea",
-        "habitat": "Tropical forests and plantations",
-        "lifespan": "Perennial",
-        "height_m": 30.0,
-        "spread_m": 10.0,
-        "sunlight": "Full Sun",
-        "water_requirement": "Moderate",
-        "soil_type": "Well-drained acidic to neutral soil",
-        "flower_color": "Cream to Yellow",
-        "flowering_season": "Seasonal",
-        "uses": "Timber, reforestation, paper production",
-        "toxicity": "Some species contain toxic compounds",
-        "description": "A fast-growing tropical tree commonly cultivated for timber, pulp production, and reforestation."
-    }
-
+# DATA MODELS
+NonEmptyString = Annotated[str, Field(min_length=1)]
+ImageSlug = Annotated[
+    str,
+    Field(min_length=1, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$"),
+]
+PositiveMeasurement = Annotated[float, Field(gt=0, allow_inf_nan=False)]
+Sunlight = Literal[
+    "Full Sun", "Partial Shade", "Full Sun to Partial Shade",
+    "Low Light to Full Sun", "Bright Indirect Light"
+]
+WaterRequirement = Literal[
+    "Low", "Moderate", "High", "Low to Moderate", "Moderate to High"
 ]
 
-# Validate every record at startup while preserving dictionary access in routes.
-plants = [Plant.model_validate(plant).model_dump() for plant in plants]
-select_api_router = create_select_router(lambda: plants)
 
+class PlantFields(BaseModel):
+    """Validated plant fields shared by create and update requests."""
+
+    model_config = ConfigDict(strict=True, str_strip_whitespace=True, extra="forbid")
+
+    image_slug: ImageSlug
+    common_name: NonEmptyString
+    scientific_name: NonEmptyString
+    family: NonEmptyString
+    genus: NonEmptyString
+    plant_type: NonEmptyString
+    origin: NonEmptyString
+    habitat: NonEmptyString
+    lifespan: NonEmptyString
+    height_m: PositiveMeasurement
+    spread_m: PositiveMeasurement
+    sunlight: Sunlight
+    water_requirement: WaterRequirement
+    soil_type: NonEmptyString
+    flower_color: NonEmptyString
+    flowering_season: NonEmptyString
+    uses: NonEmptyString
+    toxicity: NonEmptyString
+    description: NonEmptyString
+
+
+class Plant(PlantFields):
+    id: int = Field(gt=0)
+
+
+class PlantCollection(BaseModel):
+    count: int
+    plants: list[Plant]
+
+
+class PlantSearchResponse(BaseModel):
+    query: str
+    count: int
+    results: list[Plant]
+
+
+class PlantCreate(PlantFields):
+    """A new plant record; the database assigns its id."""
+
+
+class PlantUpdate(BaseModel):
+    """Partial plant fields. Omitted fields stay unchanged; null is rejected."""
+
+    model_config = ConfigDict(strict=True, str_strip_whitespace=True, extra="forbid")
+
+    image_slug: Optional[ImageSlug] = None
+    common_name: Optional[NonEmptyString] = None
+    scientific_name: Optional[NonEmptyString] = None
+    family: Optional[NonEmptyString] = None
+    genus: Optional[NonEmptyString] = None
+    plant_type: Optional[NonEmptyString] = None
+    origin: Optional[NonEmptyString] = None
+    habitat: Optional[NonEmptyString] = None
+    lifespan: Optional[NonEmptyString] = None
+    height_m: Optional[PositiveMeasurement] = None
+    spread_m: Optional[PositiveMeasurement] = None
+    sunlight: Optional[Sunlight] = None
+    water_requirement: Optional[WaterRequirement] = None
+    soil_type: Optional[NonEmptyString] = None
+    flower_color: Optional[NonEmptyString] = None
+    flowering_season: Optional[NonEmptyString] = None
+    uses: Optional[NonEmptyString] = None
+    toxicity: Optional[NonEmptyString] = None
+    description: Optional[NonEmptyString] = None
+
+    @model_validator(mode="after")
+    def require_non_null_changes(self) -> "PlantUpdate":
+        if not self.model_fields_set:
+            raise ValueError("At least one plant field must be provided.")
+        if any(getattr(self, field) is None for field in self.model_fields_set):
+            raise ValueError("Plant fields cannot be null.")
+        return self
+
+
+def _plant_response(row):
+    """Return only the public plant fields with API-friendly numeric types."""
+    values = {field: row[field] for field in Plant.model_fields}
+    values["height_m"] = float(values["height_m"])
+    values["spread_m"] = float(values["spread_m"])
+    return Plant.model_validate(values)
+
+
+def _load_plant_catalog():
+    try:
+        return [_plant_response(row).model_dump() for row in select_plants()]
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail="The plant database is unavailable.",
+        ) from None
+
+
+select_api_router = create_select_router(_load_plant_catalog)
 # API KEY AUTHENTICATION
 def verify_api_key(x_api_key: Optional[str] = Header(default=None)):
     # Index and Select may read shared catalog routes using their own client keys.
@@ -479,6 +240,38 @@ def verify_api_key(x_api_key: Optional[str] = Header(default=None)):
             detail="Invalid or missing API key."
         )
     return True
+
+
+def verify_admin_api_key(x_api_key: Optional[str] = Header(default=None)):
+    """Protect catalog writes with a secret that is never sent to site clients."""
+    expected_key = os.getenv("PETALCORE_ADMIN_API_KEY")
+    if not expected_key:
+        raise HTTPException(
+            status_code=503,
+            detail="Plant management is not configured.",
+        )
+    if not x_api_key or not hmac.compare_digest(x_api_key, expected_key):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or missing admin API key.",
+        )
+    return True
+
+
+def _database_call(operation):
+    """Translate database failures into safe API responses."""
+    try:
+        return operation()
+    except IntegrityError:
+        raise HTTPException(
+            status_code=409,
+            detail="The plant conflicts with an existing database record.",
+        ) from None
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail="The plant database is unavailable.",
+        ) from None
 
 
 # HOME
@@ -530,45 +323,106 @@ def health_check():
 
 
 # GET ALL PLANTS (Protected)
-@api_router.get("/plants", dependencies=[Depends(verify_api_key)])
+@api_router.get(
+    "/plants",
+    response_model=PlantCollection,
+    dependencies=[Depends(verify_api_key)],
+)
 def get_plants():
-
+    plants = _database_call(
+        lambda: [_plant_response(row).model_dump() for row in select_plants()]
+    )
     return {
         "count": len(plants),
-        "plants": plants
+        "plants": plants,
     }
 
 # SEARCH PLANTS (Protected)
-@api_router.get("/plants/search", dependencies=[Depends(verify_api_key)])
-def search_plants(q: str = Query(..., min_length=1)):
-    q = q.lower()
-    results = []
-    for plant in plants:
-        # Include all 20 fields, separating values to avoid joining words together.
-        searchable_text = " ".join(str(value) for value in plant.values()).lower()
-
-        if q in searchable_text:
-            results.append(plant)
-
+@api_router.get(
+    "/plants/search",
+    response_model=PlantSearchResponse,
+    dependencies=[Depends(verify_api_key)],
+)
+def search_plants(q: str = Query(..., min_length=1, max_length=100)):
+    q = q.strip()
+    if not q:
+        raise HTTPException(status_code=422, detail="Search text cannot be empty.")
+    normalized_query = q.lower()
+    results = _database_call(
+        lambda: [
+            _plant_response(row).model_dump()
+            for row in search_plant_records(q)
+        ]
+    )
     return {
-        "query": q,
+        "query": normalized_query,
         "count": len(results),
-        "results": results
+        "results": results,
     }
 
 # GET ONE PLANT (Protected)
-@api_router.get("/plants/{plant_id}", dependencies=[Depends(verify_api_key)])
-def get_plant(plant_id: int):
+@api_router.get(
+    "/plants/{plant_id}",
+    response_model=Plant,
+    dependencies=[Depends(verify_api_key)],
+)
+def get_plant(plant_id: int = APIPath(gt=0)):
+    row = _database_call(lambda: select_plant(plant_id))
+    if row is None:
+        raise HTTPException(status_code=404, detail="Plant not found.")
+    return _database_call(lambda: _plant_response(row))
 
-    for plant in plants:
 
-        if plant["id"] == plant_id:
-            return plant
-
-    raise HTTPException(
-        status_code=404,
-        detail="plant not found."
+# CREATE PLANT (Admin protected)
+@api_router.post(
+    "/plants",
+    status_code=201,
+    response_model=Plant,
+    dependencies=[Depends(verify_admin_api_key)],
+)
+def create_plant(plant: PlantCreate):
+    return _database_call(
+        lambda: _plant_response(insert_plant(plant.model_dump()))
     )
+
+
+# REPLACE PLANT (Admin protected)
+@api_router.put(
+    "/plants/{plant_id}",
+    response_model=Plant,
+    dependencies=[Depends(verify_admin_api_key)],
+)
+def put_plant(plant_id: Annotated[int, APIPath(gt=0)], plant: PlantCreate):
+    row = _database_call(lambda: update_plant(plant_id, plant.model_dump()))
+    if row is None:
+        raise HTTPException(status_code=404, detail="Plant not found.")
+    return _database_call(lambda: _plant_response(row))
+
+
+# PARTIALLY UPDATE PLANT (Admin protected)
+@api_router.patch(
+    "/plants/{plant_id}",
+    response_model=Plant,
+    dependencies=[Depends(verify_admin_api_key)],
+)
+def patch_plant(plant_id: Annotated[int, APIPath(gt=0)], plant: PlantUpdate):
+    changes = plant.model_dump(exclude_unset=True)
+    row = _database_call(lambda: update_plant(plant_id, changes))
+    if row is None:
+        raise HTTPException(status_code=404, detail="Plant not found.")
+    return _database_call(lambda: _plant_response(row))
+
+
+# DELETE PLANT (Admin protected)
+@api_router.delete(
+    "/plants/{plant_id}",
+    dependencies=[Depends(verify_admin_api_key)],
+)
+def remove_plant(plant_id: Annotated[int, APIPath(gt=0)]):
+    deleted_id = _database_call(lambda: delete_plant(plant_id))
+    if deleted_id is None:
+        raise HTTPException(status_code=404, detail="Plant not found.")
+    return {"deleted": True, "id": deleted_id}
 
 
 app.include_router(api_router)
