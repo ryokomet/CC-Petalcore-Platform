@@ -1,4 +1,5 @@
 import hmac
+import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -9,21 +10,32 @@ from fastapi import (
     APIRouter,
     Depends,
     FastAPI,
+    File,
+    Form,
     Header,
     HTTPException,
     Path as APIPath,
     Query,
+    UploadFile,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ConfigDict, Field, model_validator
-from api.id_feature import api_router as id_api_router
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from starlette.concurrency import run_in_threadpool
+
+from api.id_feature import (
+    MAX_IMAGE_BYTES,
+    api_router as id_api_router,
+    prepare_image,
+)
 from api.plant_repository import (
-    create_plant as insert_plant,
+    create_plants_with_images as insert_plants_with_images,
     find_plant as select_plant,
+    get_plant_image,
     list_plants as select_plants,
     remove_plant as delete_plant,
+    replace_plant_image,
     replace_plant as update_plant,
     search_plants as search_plant_records,
 )
@@ -283,6 +295,31 @@ def _database_call(operation):
         ) from None
 
 
+def _parse_plant_json(payload: str) -> PlantCreate:
+    try:
+        return PlantCreate.model_validate_json(payload)
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=exc.errors(include_url=False),
+        ) from None
+
+
+async def _prepare_uploaded_plant_image(image: UploadFile) -> bytes:
+    try:
+        if image.content_type not in {"image/jpeg", "image/png"}:
+            raise HTTPException(415, "Choose a JPG or PNG image.")
+
+        content = await image.read(MAX_IMAGE_BYTES + 1)
+        if len(content) > MAX_IMAGE_BYTES:
+            raise HTTPException(413, "Each image must be under 4 MB.")
+        if not content:
+            raise HTTPException(422, "The selected image is empty.")
+        return await run_in_threadpool(prepare_image, content)
+    finally:
+        await image.close()
+
+
 # HOME
 @app.get("/")
 def home():
@@ -382,6 +419,33 @@ def get_plant(plant_id: int = APIPath(gt=0)):
     return _database_call(lambda: _plant_response(row))
 
 
+# GET PLANT IMAGE (Public so Index can load it in an img element)
+@api_router.get(
+    "/plants/{plant_id}/image",
+    response_class=Response,
+    responses={
+        200: {
+            "content": {
+                "image/jpeg": {
+                    "schema": {"type": "string", "format": "binary"},
+                }
+            }
+        },
+        404: {"description": "Plant image not found."},
+    },
+)
+def get_plant_image_route(plant_id: int = APIPath(gt=0)):
+    image = _database_call(lambda: get_plant_image(plant_id))
+    if image is None:
+        raise HTTPException(status_code=404, detail="Plant image not found.")
+    content, content_type = image
+    return Response(
+        content=content,
+        media_type=content_type,
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 # CREATE PLANT (Admin protected)
 @api_router.post(
     "/plants",
@@ -389,10 +453,79 @@ def get_plant(plant_id: int = APIPath(gt=0)):
     response_model=Plant,
     dependencies=[Depends(verify_admin_api_key)],
 )
-def create_plant(plant: PlantCreate):
-    return _database_call(
-        lambda: _plant_response(insert_plant(plant.model_dump()))
-    )
+async def create_plant(plant: str = Form(...), image: UploadFile = File(...)):
+    try:
+        record = _parse_plant_json(plant)
+        image_data = await _prepare_uploaded_plant_image(image)
+        rows = _database_call(
+            lambda: insert_plants_with_images([(record.model_dump(), image_data)])
+        )
+        return _database_call(lambda: _plant_response(rows[0]))
+    finally:
+        await image.close()
+
+
+# CREATE MULTIPLE PLANTS (Admin protected)
+@api_router.post(
+    "/plants/bulk",
+    status_code=201,
+    response_model=PlantCollection,
+    dependencies=[Depends(verify_admin_api_key)],
+)
+async def create_plants_bulk(plants: str = Form(...), images: list[UploadFile] = File(...)):
+    try:
+        try:
+            submitted_plants = json.loads(plants)
+        except (TypeError, json.JSONDecodeError):
+            raise HTTPException(status_code=422, detail="Plant entries must be a JSON array.") from None
+
+        if not isinstance(submitted_plants, list) or not submitted_plants:
+            raise HTTPException(status_code=422, detail="Add at least one plant entry.")
+        if len(submitted_plants) > 10:
+            raise HTTPException(status_code=422, detail="Add no more than 10 plants per batch.")
+        if len(images) != len(submitted_plants):
+            raise HTTPException(
+                status_code=422,
+                detail="Choose exactly one image for each plant, in the same order.",
+            )
+
+        try:
+            records = [PlantCreate.model_validate(item) for item in submitted_plants]
+        except ValidationError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail=exc.errors(include_url=False),
+            ) from None
+
+        prepared_records = []
+        for record, image in zip(records, images):
+            image_data = await _prepare_uploaded_plant_image(image)
+            prepared_records.append((record.model_dump(), image_data))
+
+        rows = _database_call(lambda: insert_plants_with_images(prepared_records))
+        response_plants = _database_call(
+            lambda: [_plant_response(row).model_dump() for row in rows]
+        )
+        return {"count": len(response_plants), "plants": response_plants}
+    finally:
+        for image in images:
+            await image.close()
+
+
+# REPLACE A PLANT IMAGE (Admin protected)
+@api_router.put(
+    "/plants/{plant_id}/image",
+    dependencies=[Depends(verify_admin_api_key)],
+)
+async def put_plant_image(plant_id: int = APIPath(gt=0), image: UploadFile = File(...)):
+    try:
+        image_data = await _prepare_uploaded_plant_image(image)
+        updated = _database_call(lambda: replace_plant_image(plant_id, image_data))
+        if not updated:
+            raise HTTPException(status_code=404, detail="Plant not found.")
+        return {"image_updated": True, "plant_id": plant_id}
+    finally:
+        await image.close()
 
 
 # REPLACE PLANT (Admin protected)

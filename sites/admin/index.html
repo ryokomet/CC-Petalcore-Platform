@@ -39,6 +39,7 @@
                 </form>
                 <button id="refreshButton" type="button">Refresh</button>
                 <button id="createButton" type="button">Add plant</button>
+                <button id="bulkButton" type="button">Add multiple</button>
                 <button id="lockButton" type="button">Lock</button>
             </div>
             <p id="notice" class="message" role="status" aria-live="polite"></p>
@@ -85,9 +86,30 @@
                 </select>
             </div>
             <div id="plantFields" class="field-grid"></div>
+            <div class="field image-field">
+                <label for="plantImage">Plant image <span id="imageRequirement">(required)</span></label>
+                <input id="plantImage" type="file" accept="image/jpeg,image/png" required>
+                <small>Choose a JPG or PNG. Existing images are kept when editing unless you select a replacement.</small>
+            </div>
             <div class="dialog-actions">
                 <button id="cancelPlantDialog" type="button">Cancel</button>
                 <button id="savePlantButton" type="submit">Create plant</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="bulkDialog">
+        <form id="bulkForm" class="dialog-content">
+            <div class="dialog-heading">
+                <h2>Add multiple plants</h2>
+                <button id="closeBulkDialog" type="button" aria-label="Close">×</button>
+            </div>
+            <p>Fill in each plant and attach one JPG or PNG to every entry. The batch is saved together.</p>
+            <div id="bulkEntries"></div>
+            <button id="addBulkEntry" type="button">Add another entry</button>
+            <div class="dialog-actions">
+                <button id="cancelBulkDialog" type="button">Cancel</button>
+                <button id="saveBulkButton" type="submit">Save all plants</button>
             </div>
         </form>
     </dialog>

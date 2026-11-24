@@ -90,6 +90,25 @@ function slugify(text) {
         .replace(/\s+/g, "-");
 }
 
+function setPlantImage(image, plant) {
+    const staticImage = `images/${slugify(plant.common_name)}.jpg`;
+    image.alt = plant.common_name;
+    image.dataset.staticImage = staticImage;
+    image.onerror = function () {
+        if (!this.dataset.usedStaticImage) {
+            this.dataset.usedStaticImage = "true";
+            this.src = this.dataset.staticImage;
+            return;
+        }
+        this.onerror = null;
+        this.src = "images/placeholder.jpg";
+    };
+
+    image.src = apiConfig?.api_url
+        ? `${apiConfig.api_url}/plants/${plant.id}/image`
+        : staticImage;
+}
+
 function displayPlants(plants) {
     const plantList = document.getElementById("plantList");
 
@@ -112,9 +131,8 @@ function displayPlants(plants) {
         card.innerHTML = `
             <div class="plant-image">
                 <img
-                    src="images/${slugify(plant.common_name)}.jpg"
+                    src="images/placeholder.jpg"
                     alt="${plant.common_name}"
-                    onerror="this.onerror=null;this.src='images/placeholder.jpg';"
                 >
             </div>
 
@@ -139,6 +157,8 @@ function displayPlants(plants) {
             </div>
         `;
 
+        setPlantImage(card.querySelector(".plant-image img"), plant);
+
         plantList.appendChild(card);
     });
 }
@@ -156,14 +176,7 @@ async function viewPlant(id) {
             return;
         }
 
-        modalImage.src = `images/${slugify(plant.common_name)}.jpg`;
-
-        modalImage.onerror = function () {
-            this.onerror = null;
-            this.src = "images/placeholder.jpg";
-        };
-
-        modalImage.alt = plant.common_name;
+        setPlantImage(modalImage, plant);
 
         modalContent.innerHTML = `
             <h2>${plant.common_name}</h2>
