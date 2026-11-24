@@ -50,3 +50,16 @@ Content-Type: application/json
 
 {"common_name": "Garden Rose"}
 ```
+
+## Optional user accounts
+
+Petalcore supports optional email/password accounts through Supabase Auth. Guest access to Index, ID, and Select remains available. The shared account page is available at `/account/` and supports registration, email confirmation, sign-in, sign-out, password reset requests, and editing a display name.
+
+### Setup
+
+1. In the Supabase project, enable Email authentication. Configure the Site URL and allowed redirect URL to include `https://YOUR-PETALCORE-DOMAIN/account/` (and your local development URL if used).
+2. Run `database/user_accounts.sql` in the Supabase SQL Editor. It creates the `profiles` table, a profile-on-signup trigger, and row-level security policies so users can read and update only their own profile.
+3. Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` in the Platform deployment environment. The anon/publishable key is designed for browser use with RLS enabled. Never use the service-role key here.
+4. Redeploy the Platform. Open `/account/` to register or sign in.
+
+Supabase Auth stores and verifies passwords. Petalcore stores only profile metadata in `public.profiles`; credentials are not stored in the application database. Email confirmation behavior is controlled by the Supabase Auth email settings. The profile page currently provides account basics; favorites, plant collections, and saved identification history are not included in this initial authentication release.
