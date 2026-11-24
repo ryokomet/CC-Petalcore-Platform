@@ -58,7 +58,10 @@ $("authForm").addEventListener("submit", async (event) => {
     if (mode === "signup") {
       result = await supabaseClient.auth.signUp({
         email, password,
-        options: { data: { display_name: $("displayName").value.trim() } }
+        options: {
+          data: { display_name: $("displayName").value.trim() },
+          emailRedirectTo: window.location.origin + "/account/"
+        }
       });
     } else {
       result = await supabaseClient.auth.signInWithPassword({ email, password });
