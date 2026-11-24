@@ -99,6 +99,40 @@ def search_plants(query: str) -> list[dict[str, Any]]:
         return [dict(row) for row in connection.execute(statement).mappings().all()]
 
 
+def find_duplicate_plant_fields(
+    records: list[dict[str, Any]],
+    exclude_plant_id: int | None = None,
+) -> set[str]:
+    """Find duplicate catalog identity values, comparing case-insensitively."""
+    unique_fields = ("common_name", "scientific_name", "image_slug")
+    table = _plants_table()
+    clauses = [
+        func.lower(func.trim(table.c[field])) == str(record[field]).strip().lower()
+        for record in records
+        for field in unique_fields
+        if field in record
+    ]
+    if not clauses:
+        return set()
+
+    statement = select(table.c.id, *(table.c[field] for field in unique_fields)).where(
+        or_(*clauses)
+    )
+    if exclude_plant_id is not None:
+        statement = statement.where(table.c.id != exclude_plant_id)
+
+    with _engine().connect() as connection:
+        existing_rows = connection.execute(statement).mappings().all()
+
+    duplicates: set[str] = set()
+    for row in existing_rows:
+        for record in records:
+            for field in unique_fields:
+                if field in record and str(row[field]).strip().lower() == str(record[field]).strip().lower():
+                    duplicates.add(field)
+    return duplicates
+
+
 def create_plants_with_images(
     records: list[tuple[dict[str, Any], bytes]],
 ) -> list[dict[str, Any]]:

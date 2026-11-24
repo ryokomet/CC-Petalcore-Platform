@@ -50,3 +50,13 @@ Content-Type: application/json
 
 {"common_name": "Garden Rose"}
 ```
+
+## Phase 6: validation, errors, and security
+
+Plant create and replacement requests use strict Pydantic validation. Text fields must be nonblank, `image_slug` must be lowercase letters/numbers separated by single hyphens, measurements must be finite positive numbers, and sunlight and water requirements must use the listed options. The API checks `common_name`, `scientific_name`, and `image_slug` against both the current catalog and the other entries in a bulk request, case-insensitively. PostgreSQL unique-constraint failures are also translated to `409` responses as a final safeguard.
+
+Invalid or incomplete input returns `422`; unsupported image types return `415`; oversized uploads return `413`; missing records return `404`; duplicate catalog values return `409`; database connection/query failures return `503`; and unexpected failures return a generic server error. Error responses do not include database URLs, credentials, SQL, or stack traces. Pl@ntNet provider failures are converted to safe client messages.
+
+Catalog list, detail, and search requests require an Index or Select client key. These client keys are intentionally public because browser clients receive them from `/config`; they are read-only and do not authorize catalog writes. Create, update, delete, image replacement, and the database diagnostic routes require `PETALCORE_ADMIN_API_KEY`. Missing admin configuration returns `503`, while a missing or incorrect key returns `401`. The admin page keeps the key in memory and never fetches it from a public config route. The health and client configuration routes, plus plant images used by the public library, remain public by design.
+
+`DATABASE_URL`, `PETALCORE_ADMIN_API_KEY`, and `PLANTNET_API_KEY` are read from environment variables. Keep local values in `.env` (ignored by Git) and configure deployment values in the hosting platform's environment settings. The database connection uses TLS for remote PostgreSQL hosts unless `DATABASE_URL` already specifies an SSL mode; localhost connections remain usable for development. Do not use a database password as the API admin key.

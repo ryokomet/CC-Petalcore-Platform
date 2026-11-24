@@ -31,6 +31,7 @@ from api.id_feature import (
 )
 from api.plant_repository import (
     create_plants_with_images as insert_plants_with_images,
+    find_duplicate_plant_fields as find_plant_duplicate_fields,
     find_plant as select_plant,
     get_plant_image,
     list_plants as select_plants,
@@ -41,7 +42,7 @@ from api.plant_repository import (
 )
 from api.select_feature import create_select_router
 from sqlalchemy import text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 # CONFIGURATION
 BASE_DIR = Path(__file__).resolve().parent
@@ -54,7 +55,8 @@ API_VERSION = "1.0"
 API_PREFIX = "/api/v1"
 APP_DESCRIPTION = "A beginner-friendly REST API containing information about plants."
 
-INDEX_API_KEY = os.getenv("PETALCORE_INDEX_API_KEY", "2024-2-00682-api-key-FDRD")
+# Browser-facing read keys are public client identifiers, not write credentials.
+INDEX_API_KEY = os.getenv("PETALCORE_INDEX_API_KEY", "petalcore-index-public-client")
 ID_API_KEY = os.getenv("PETALCORE_ID_API_KEY", "petalcore-id-public-client")
 SELECT_API_KEY = os.getenv("PETALCORE_SELECT_API_KEY", "petalcore-select-public-client")
 PLANTNET_API_KEY = os.getenv("PLANTNET_API_KEY", "")
@@ -245,8 +247,11 @@ select_api_router = create_select_router(_load_plant_catalog)
 # API KEY AUTHENTICATION
 def verify_api_key(x_api_key: Optional[str] = Header(default=None)):
     # Index and Select may read shared catalog routes using their own client keys.
-    valid_keys = {INDEX_API_KEY, SELECT_API_KEY}
-    if not x_api_key or x_api_key not in valid_keys:
+    valid_keys = (INDEX_API_KEY, SELECT_API_KEY)
+    if not x_api_key or not any(
+        key and hmac.compare_digest(x_api_key.encode(), key.encode())
+        for key in valid_keys
+    ):
         raise HTTPException(
             status_code=401,
             detail="Invalid or missing API key."
@@ -262,7 +267,9 @@ def verify_admin_api_key(x_api_key: Optional[str] = Header(default=None)):
             status_code=503,
             detail="Plant management is not configured.",
         )
-    if not x_api_key or not hmac.compare_digest(x_api_key, expected_key):
+    if not x_api_key or not hmac.compare_digest(
+        x_api_key.encode(), expected_key.encode()
+    ):
         raise HTTPException(
             status_code=401,
             detail="Invalid or missing admin API key.",
@@ -320,13 +327,62 @@ def _database_call(operation):
             status_code=409,
             detail=_integrity_conflict_detail(exc),
         ) from None
-    except Exception:
+    except SQLAlchemyError:
         raise HTTPException(
             status_code=503,
-            detail="The plant database is unavailable.",
+            detail="The plant database could not complete the request.",
+        ) from None
+    except KeyError as exc:
+        if exc.args == ("DATABASE_URL",):
+            raise HTTPException(
+                status_code=503,
+                detail="The plant database is not configured.",
+            ) from None
+        raise HTTPException(
+            status_code=500,
+            detail="The request could not be completed.",
+        ) from None
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="The request could not be completed.",
         ) from None
 
 
+def _validate_plant_uniqueness(
+    records: list[dict],
+    exclude_plant_id: int | None = None,
+) -> None:
+    """Reject duplicate catalog names/slugs before an insert consumes an ID."""
+    labels = {
+        "common_name": "common name",
+        "scientific_name": "scientific name",
+        "image_slug": "image slug",
+    }
+    seen: dict[tuple[str, str], int] = {}
+    for index, record in enumerate(records, start=1):
+        for field, label in labels.items():
+            value = record.get(field)
+            if value is None:
+                continue
+            key = (field, str(value).strip().casefold())
+            previous_index = seen.get(key)
+            if previous_index is not None:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Entries {previous_index} and {index} use the same {label}.",
+                )
+            seen[key] = index
+
+    duplicate_fields = _database_call(
+        lambda: find_plant_duplicate_fields(records, exclude_plant_id)
+    )
+    for field, label in labels.items():
+        if field in duplicate_fields:
+            raise HTTPException(
+                status_code=409,
+                detail=f"A plant with that {label} already exists. Choose a different value.",
+            )
 def _parse_plant_json(payload: str) -> PlantCreate:
     try:
         return PlantCreate.model_validate_json(payload)
@@ -488,6 +544,7 @@ def get_plant_image_route(plant_id: int = APIPath(gt=0)):
 async def create_plant(plant: str = Form(...), image: UploadFile = File(...)):
     try:
         record = _parse_plant_json(plant)
+        _validate_plant_uniqueness([record.model_dump()])
         image_data = await _prepare_uploaded_plant_image(image)
         rows = _database_call(
             lambda: insert_plants_with_images([(record.model_dump(), image_data)])
@@ -529,6 +586,8 @@ async def create_plants_bulk(plants: str = Form(...), images: list[UploadFile] =
                 detail=exc.errors(include_url=False),
             ) from None
 
+        _validate_plant_uniqueness([record.model_dump() for record in records])
+
         prepared_records = []
         for record, image in zip(records, images):
             image_data = await _prepare_uploaded_plant_image(image)
@@ -567,6 +626,9 @@ async def put_plant_image(plant_id: int = APIPath(gt=0), image: UploadFile = Fil
     dependencies=[Depends(verify_admin_api_key)],
 )
 def put_plant(plant_id: Annotated[int, APIPath(gt=0)], plant: PlantCreate):
+    if _database_call(lambda: select_plant(plant_id)) is None:
+        raise HTTPException(status_code=404, detail="Plant not found.")
+    _validate_plant_uniqueness([plant.model_dump()], exclude_plant_id=plant_id)
     row = _database_call(lambda: update_plant(plant_id, plant.model_dump()))
     if row is None:
         raise HTTPException(status_code=404, detail="Plant not found.")
@@ -580,7 +642,10 @@ def put_plant(plant_id: Annotated[int, APIPath(gt=0)], plant: PlantCreate):
     dependencies=[Depends(verify_admin_api_key)],
 )
 def patch_plant(plant_id: Annotated[int, APIPath(gt=0)], plant: PlantUpdate):
+    if _database_call(lambda: select_plant(plant_id)) is None:
+        raise HTTPException(status_code=404, detail="Plant not found.")
     changes = plant.model_dump(exclude_unset=True)
+    _validate_plant_uniqueness([changes], exclude_plant_id=plant_id)
     row = _database_call(lambda: update_plant(plant_id, changes))
     if row is None:
         raise HTTPException(status_code=404, detail="Plant not found.")
@@ -626,7 +691,11 @@ app.mount(
 )
 
 # DATABASE CONNECTIVITY CHECK (Phase 4, step 6-7)
-@app.get("/db-test", include_in_schema=False)
+@app.get(
+    "/db-test",
+    include_in_schema=False,
+    dependencies=[Depends(verify_admin_api_key)],
+)
 def db_test():
     try:
         from api.database import engine
@@ -643,7 +712,11 @@ def db_test():
 
 
 # INITIAL DATA RETRIEVAL (Phase 4, step 8)
-@app.get("/db-plants", include_in_schema=False)
+@app.get(
+    "/db-plants",
+    include_in_schema=False,
+    dependencies=[Depends(verify_admin_api_key)],
+)
 def db_plants():
     try:
         from api.database import engine

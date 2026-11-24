@@ -1,5 +1,6 @@
 """Recommendation API for Petalcore Select."""
 
+import hmac
 import os
 from collections.abc import Callable, Sequence
 from typing import Any, Literal, Optional
@@ -57,7 +58,9 @@ def verify_select_api_key(
             status_code=503,
             detail="Petalcore Select is not configured.",
         )
-    if not x_api_key or x_api_key != expected_key:
+    if not x_api_key or not hmac.compare_digest(
+        x_api_key.encode(), expected_key.encode()
+    ):
         raise HTTPException(
             status_code=401,
             detail="Invalid or missing Petalcore Select API key.",
